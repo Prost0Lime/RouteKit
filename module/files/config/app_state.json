@@ -1,0 +1,11 @@
+{
+  "zapret_enabled": true,
+  "proxy_enabled": false,
+  "routing_enabled": false,
+  "routing_mode": "proxy_list",
+  "transproxy_enabled": false,
+  "ipv6_block_enabled": true,
+  "dns_redirect_enabled": false,
+  "selected_zapret_profile": "default",
+  "selected_proxy_group": "default"
+}

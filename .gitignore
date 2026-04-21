@@ -1,0 +1,30 @@
+# Gradle / Android build output
+.gradle/
+build/
+app/build/
+**/build/
+
+# Local IDE and machine state
+.idea/
+*.iml
+local.properties
+
+# Generated packages
+*.apk
+*.aab
+*.ap_
+module/*.zip
+
+# Logs and runtime state
+*.log
+module/files/runtime/
+module/files/config/proxy.json
+module/files/config/active_profile.txt
+
+# Local VPN profile data. Keep the directory structure, not user secrets.
+module/files/config/profiles/*
+!module/files/config/profiles/.gitkeep
+
+# OS junk
+.DS_Store
+Thumbs.db

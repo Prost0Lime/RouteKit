@@ -1,0 +1,6 @@
+id=zapret2_manager
+name=RouteKit
+version=0.8.1
+versionCode=8
+author=Prost0Lime
+description=Selective routing toolkit with zapret, sing-box and transparent proxy support
