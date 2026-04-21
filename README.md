@@ -41,7 +41,7 @@ tools/dnsresolve/        Helper resolver source/build scripts
 - Android 7.0+ for the manager app.
 - A working VLESS profile if you want to use `VPN` mode.
 
-## Build
+## Build APK
 
 The Android project uses Gradle with Android Gradle Plugin 8.5.2 and Kotlin 1.9.24.
 
@@ -58,6 +58,30 @@ If you add a Gradle wrapper later:
 ```
 
 The APK will be produced under `app/build/outputs/apk/`.
+
+The repository currently contains `gradle-wrapper.properties`, but does not include generated wrapper scripts/jar yet. Generate them with:
+
+```bash
+gradle wrapper --gradle-version 8.7
+```
+
+## Build Module Zip
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/package-module.ps1
+```
+
+Linux/macOS/WSL:
+
+```bash
+sh tools/package-module.sh
+```
+
+The module zip is written to `dist/`.
+
+The packaging scripts exclude runtime state, logs, generated `proxy.json`, `active_profile.txt`, and user VPN profiles.
 
 ## Module
 
@@ -102,4 +126,3 @@ This matches `example.com` and subdomains handled by the routing/resolution logi
 ## Status
 
 RouteKit is an active beta. Core workflows are working, but APIs, scripts, and UI can still change.
-
