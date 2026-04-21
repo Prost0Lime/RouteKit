@@ -83,6 +83,21 @@ The module zip is written to `dist/`.
 
 The packaging scripts exclude runtime state, logs, generated `proxy.json`, `active_profile.txt`, and user VPN profiles.
 
+## Releases
+
+Release builds are automated with GitHub Actions.
+
+Push a tag like:
+
+```bash
+git tag v0.8.1
+git push origin v0.8.1
+```
+
+The workflow builds the APK, packages the module zip, and attaches both files to the GitHub Release.
+
+See [docs/RELEASE.md](docs/RELEASE.md) for the checklist.
+
 ## Module
 
 The module lives in `module/`.
