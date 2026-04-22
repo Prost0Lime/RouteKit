@@ -1,77 +1,132 @@
 # RouteKit
 
-RouteKit is an Android root toolkit for selective traffic routing.
+**Русский** | [English](README.en.md)
 
-It combines a Magisk/KernelSU-style module, a small Android manager app, `sing-box`, and zapret/nfqws-based rules so individual services can be routed through one of three modes:
+RouteKit - root-инструмент для Android, который помогает настраивать выборочную маршрутизацию сервисов без системного Android VPN.
 
-- `VPN` - route selected service IPs through the active VLESS profile using transparent proxy rules.
-- `zapret` - apply zapret/nfqws strategies for selected services.
-- `direct` - explicitly bypass proxy/zapret routing for selected domains.
+Проект объединяет Magisk/KernelSU-модуль, Android-приложение, `sing-box`, zapret/nfqws и transparent proxy-правила. Для каждого сервиса можно выбрать один из режимов:
 
-The project is currently in beta and is intended for rooted Android devices.
+- `VPN` - направлять выбранные IPv4-адреса сервиса через активный VLESS-профиль с помощью transparent proxy.
+- `zapret` - применять zapret/nfqws-стратегии для выбранного сервиса.
+- `direct` - явно отправлять домены напрямую, без proxy/zapret.
 
-## Features
+Проект находится в beta-статусе и предназначен для rooted Android-устройств.
 
-- Android UI for managing service modes, custom services, and VLESS profiles.
-- VPN profile groups with per-profile ping checks and sorting.
-- Domain-based service configuration with `suffix:` wildcard-style entries.
-- Automatic IPv4/IPv6 collection for VPN-mode services.
-- DNS redirect to local `sing-box` DNS listener.
-- Transparent proxy rules for selected IPv4 destinations.
-- IPv6 block support for environments where IPv6 would bypass IPv4-only transproxy rules.
-- Per-service diagnostics and repair actions.
-- Per-profile diagnostics.
-- Import/export for custom services.
-- VLESS import from link, text, or file.
+## Что Важно
 
-## Project Layout
+- RouteKit не использует Android `VpnService`.
+- RouteKit не создаёт типичный пользовательский TUN-интерфейс вроде `tun0`.
+- Маршрутизация работает через root-правила `iptables`, DNS redirect, локальный `sing-box` listener и сервисные IP-списки.
+- В проверенном сценарии RouteKit не был обнаружен стандартными VPN-индикаторами Android API и интерфейсной эвристикой.
 
-```text
-app/                     Android manager app
-module/                  Root module payload
-module/files/scripts/    Android shell control scripts
-module/files/bin/        Bundled native binaries and zapret payloads
-tools/dnsresolve/        Helper resolver source/build scripts
-```
+Это не обещание “невозможно обнаружить вообще”. Приложения могут использовать собственные эвристики, проверять сеть, DNS, задержки, IP-адрес выхода или поведение конкретного сервиса. Но RouteKit не выглядит как обычный Android VPN-клиент, потому что не поднимает системный VPN transport.
 
-## Requirements
+## Проверка Обнаружения
 
-- Rooted Android device.
-- Magisk, KernelSU, or compatible module environment.
-- Android 7.0+ for the manager app.
-- A working VLESS profile if you want to use `VPN` mode.
+Для проверки использовалось приложение [VPN Detector](https://github.com/cherepavel/VPN-Detector).
 
-## Download
+Результат теста: `No VPN detected`. Android API не сообщил `TRANSPORT_VPN`, Java/native enumeration не нашли tunnel-like интерфейсы.
 
-Download APK and module zip from the latest GitHub Release:
+<p align="center">
+  <img src="docs/screenshots/vpn-detector-overview.png" width="260" alt="VPN Detector: No VPN detected" />
+  <img src="docs/screenshots/vpn-detector-interfaces.png" width="260" alt="VPN Detector: native interface enumeration" />
+  <img src="docs/screenshots/vpn-detector-java.png" width="260" alt="VPN Detector: Java interface enumeration" />
+</p>
+
+Технически это объясняется тем, что RouteKit работает не как Android VPN:
+
+- нет `VpnService` и системного `TRANSPORT_VPN`;
+- нет TUN-интерфейса, который обычно виден как `tun0`, `ppp*`, `wg*` или похожий tunnel-like interface;
+- TCP-трафик выбранных сервисов перенаправляется root-правилами на локальный `sing-box`;
+- DNS можно перенаправлять на локальный listener `127.0.0.1:1053`;
+- IPv6 лучше блокировать, если используется IPv4-only transparent proxy, чтобы трафик не обходил правила.
+
+## Возможности
+
+- Android UI для управления сервисами, режимами, custom services и VLESS-профилями.
+- Группы VPN-профилей с проверкой ping и сортировкой.
+- Домены сервисов с поддержкой `suffix:` для wildcard-style записей.
+- Автоматический сбор IPv4/IPv6 для VPN-mode сервисов.
+- DNS redirect на локальный `sing-box` DNS listener.
+- Transparent proxy для выбранных IPv4-направлений.
+- IPv6 block для сценариев, где IPv6 может обойти IPv4-only transproxy.
+- Диагностика и repair-действия для сервисов.
+- Диагностика VPN-профилей.
+- Импорт/экспорт custom services.
+- Импорт VLESS из ссылки, текста или файла.
+- Проверка обновлений через GitHub Releases.
+- Magisk update metadata через `updateJson`.
+
+## Скачать
+
+APK и module zip доступны в последнем GitHub Release:
 
 <https://github.com/Prost0Lime/RouteKit/releases/latest>
 
-## Build APK
+Для `v0.9.0+` Android package id: `io.github.prost0lime.routekit`.
 
-The Android project uses Gradle with Android Gradle Plugin 8.5.2 and Kotlin 1.9.24.
+Старые beta-сборки использовали `com.example.zapret2manager`, поэтому перед установкой `v0.9.0+` лучше удалить старое приложение, если Android показывает два RouteKit/Zapret manager приложения.
 
-For quick local checks without a release keystore:
+## Требования
+
+- Rooted Android-устройство.
+- Magisk, KernelSU или совместимая module-среда.
+- Android 7.0+ для manager app.
+- Рабочий VLESS-профиль для режима `VPN`.
+
+## Типичный Сценарий
+
+1. Установить root-модуль.
+2. Установить/open Android-приложение RouteKit.
+3. Импортировать один или несколько VLESS-профилей.
+4. Выбрать активный VPN-профиль.
+5. Создать или изменить сервис.
+6. Выбрать режим сервиса: `VPN`, `zapret` или `direct`.
+7. Нажать `Применить`.
+8. Если что-то не работает, открыть диагностику сервиса.
+
+Для wildcard-style доменов используйте:
+
+```text
+suffix:example.com
+```
+
+Это покрывает `example.com` и поддомены, которые попадают в логику маршрутизации/резолва.
+
+## Скриншоты RouteKit
+
+Скриншоты интерфейса будут добавлены отдельно. Лучше всего подготовить такие экраны:
+
+- главный экран со статусом модуля и блоком обновлений;
+- раскрытый блок VPN-профилей с группой, ping и активным профилем;
+- список сервисов с разными режимами `VPN`, `zapret`, `direct`;
+- окно настройки сервиса с доменами и режимом;
+- окно диагностики сервиса со статусом `OK`;
+- экран Magisk/KernelSU с модулем RouteKit и кнопкой обновления, если она отображается.
+
+## Сборка APK
+
+Проект использует Android Gradle Plugin 8.5.2 и Kotlin 1.9.24.
+
+Для быстрой локальной проверки без release-keystore:
 
 ```bash
 gradle :app:assembleDebug
 ```
 
-If you have a local Gradle installation:
+Release APK:
 
 ```bash
 gradle :app:assembleRelease
 ```
 
-If you add a Gradle wrapper later:
+Если позже будет добавлен Gradle wrapper:
 
 ```bash
 ./gradlew :app:assembleRelease
 ```
 
-The APK will be produced under `app/build/outputs/apk/`.
-
-Release signing is configured through environment variables:
+Release signing настраивается через переменные окружения:
 
 ```text
 ROUTEKIT_KEYSTORE_PATH
@@ -80,13 +135,7 @@ ROUTEKIT_KEY_ALIAS
 ROUTEKIT_KEY_PASSWORD
 ```
 
-The repository currently contains `gradle-wrapper.properties`, but does not include generated wrapper scripts/jar yet. Generate them with:
-
-```bash
-gradle wrapper --gradle-version 8.7
-```
-
-## Build Module Zip
+## Сборка Module Zip
 
 Windows PowerShell:
 
@@ -100,32 +149,36 @@ Linux/macOS/WSL:
 sh tools/package-module.sh
 ```
 
-The module zip is written to `dist/`.
+Zip будет создан в `dist/`.
 
-The packaging scripts exclude runtime state, logs, generated `proxy.json`, `active_profile.txt`, and user VPN profiles.
+Скрипты упаковки исключают runtime state, logs, generated `proxy.json`, `active_profile.txt` и пользовательские VPN-профили.
 
-## Releases
+## Релизы
 
-Release builds are automated with GitHub Actions.
-
-Push a tag like:
+Релизы собираются через GitHub Actions при push тега:
 
 ```bash
 git tag v0.9.0
 git push origin v0.9.0
 ```
 
-The workflow builds the APK, packages the module zip, and attaches both files to the GitHub Release.
+Workflow собирает APK, module zip и прикладывает их к GitHub Release.
 
-See [docs/RELEASE.md](docs/RELEASE.md) for the checklist and [CHANGELOG.md](CHANGELOG.md) for release notes.
+См. [docs/RELEASE.md](docs/RELEASE.md) и [CHANGELOG.md](CHANGELOG.md).
 
-Magisk update metadata is published through [update.json](update.json). The module id remains `zapret2_manager` for compatibility.
+Magisk update metadata публикуется через [update.json](update.json). Module id остаётся `zapret2_manager` для совместимости.
 
-## Module
+## Структура Проекта
 
-The module lives in `module/`.
+```text
+app/                     Android manager app
+module/                  Root module payload
+module/files/scripts/    Android shell control scripts
+module/files/bin/        Bundled native binaries and zapret payloads
+tools/dnsresolve/        Helper resolver source/build scripts
+```
 
-Important runtime paths on device:
+Основные пути на устройстве:
 
 ```text
 /data/adb/modules/zapret2_manager/files
@@ -133,36 +186,15 @@ Important runtime paths on device:
 /data/adb/modules/zapret2_manager/files/runtime
 ```
 
-The module id is still `zapret2_manager` for compatibility with existing installs and scripts.
+Module id всё ещё `zapret2_manager`, чтобы не ломать существующие пути, скрипты и совместимость обновления модуля.
 
-The Android app package id for public releases is `io.github.prost0lime.routekit`. Older beta builds used `com.example.zapret2manager`, so uninstall the old beta app before installing `v0.9.0+` if Android shows a duplicate app.
+## Безопасность
 
-## Typical Flow
+- Не коммитьте реальные VPN-профили, UUID, private keys или generated runtime configs.
+- `module/files/config/profiles/`, `proxy.json`, `active_profile.txt` и runtime logs намеренно игнорируются git.
+- Transparent proxy сейчас IPv4-focused. IPv6 entries определяются, но для IPv4-only transproxy рекомендуется держать IPv6 block включённым.
+- Большие native binaries сейчас лежат прямо в репозитории. GitHub может предупреждать о `sing-box` больше 50 MB. Позже можно вынести binaries в Git LFS или release assets.
 
-1. Install the root module.
-2. Install/open the Android manager app.
-3. Import one or more VLESS profiles.
-4. Select the active VPN profile.
-5. Create or edit a service.
-6. Set the service mode to `VPN`, `zapret`, or `direct`.
-7. Press `Apply` in the app.
-8. Use diagnostics if a service does not behave as expected.
+## Статус
 
-For wildcard-style domains, use:
-
-```text
-suffix:example.com
-```
-
-This matches `example.com` and subdomains handled by the routing/resolution logic.
-
-## Safety Notes
-
-- Do not commit real VPN profiles, UUIDs, private keys, or generated runtime configs.
-- `module/files/config/profiles/`, `proxy.json`, `active_profile.txt`, and runtime logs are intentionally ignored by git.
-- The current transparent proxy implementation is IPv4-focused. IPv6 entries are detected, but IPv6 traffic should be blocked when relying on IPv4-only transproxy routing.
-- Large native binaries are currently committed directly. GitHub may warn about `sing-box` being larger than 50 MB. Moving these binaries to Git LFS or release assets can be considered later.
-
-## Status
-
-RouteKit is an active beta. Core workflows are working, but APIs, scripts, and UI can still change.
+RouteKit - active beta. Основные сценарии уже работают, но API, shell scripts и UI ещё могут меняться.

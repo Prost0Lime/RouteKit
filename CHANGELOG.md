@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.9.0 - Unreleased
+## 0.9.1 - Unreleased
+
+- Make Russian README the default documentation entry point.
+- Add English README link and VPN Detector screenshots.
+- Document RouteKit's non-`VpnService`/non-TUN routing model and detection test results.
+
+## 0.9.0 - 2026-04-22
 
 - Change Android application id to `io.github.prost0lime.routekit`.
 - Prepare signed release APK builds through GitHub Actions secrets.
