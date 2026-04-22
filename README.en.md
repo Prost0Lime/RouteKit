@@ -42,6 +42,15 @@ tools/dnsresolve/        Helper resolver source/build scripts
 - Magisk, KernelSU, or compatible module environment.
 - Android 7.0+ for the manager app.
 - A working VLESS profile if you want to use `VPN` mode.
+- `arm64-v8a`/AArch64 device/ROM. Bundled native binaries are currently prepared for arm64.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/routekit-overview.png" width="260" alt="RouteKit overview" />
+  <img src="docs/screenshots/routekit-vpn-profiles.png" width="260" alt="RouteKit VPN profiles" />
+  <img src="docs/screenshots/routekit-services.png" width="260" alt="RouteKit services" />
+</p>
 
 ## Download
 
@@ -163,6 +172,7 @@ This matches `example.com` and subdomains handled by the routing/resolution logi
 - Do not commit real VPN profiles, UUIDs, private keys, or generated runtime configs.
 - `module/files/config/profiles/`, `proxy.json`, `active_profile.txt`, and runtime logs are intentionally ignored by git.
 - The current transparent proxy implementation is IPv4-focused. IPv6 entries are detected, but IPv6 traffic should be blocked when relying on IPv4-only transproxy routing.
+- Native binaries in the module payload are currently built for `arm64-v8a`/AArch64.
 - Large native binaries are currently committed directly. GitHub may warn about `sing-box` being larger than 50 MB. Moving these binaries to Git LFS or release assets can be considered later.
 
 ## Status

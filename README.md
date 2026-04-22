@@ -73,6 +73,7 @@ APK и module zip доступны в последнем GitHub Release:
 - Magisk, KernelSU или совместимая module-среда.
 - Android 7.0+ для manager app.
 - Рабочий VLESS-профиль для режима `VPN`.
+- Устройство/прошивка с `arm64-v8a`/AArch64. Встроенные native binaries сейчас подготовлены именно под arm64.
 
 ## Типичный Сценарий
 
@@ -95,11 +96,14 @@ suffix:example.com
 
 ## Скриншоты RouteKit
 
-Скриншоты интерфейса будут добавлены отдельно. Лучше всего подготовить такие экраны:
+<p align="center">
+  <img src="docs/screenshots/routekit-overview.png" width="260" alt="RouteKit: главный экран" />
+  <img src="docs/screenshots/routekit-vpn-profiles.png" width="260" alt="RouteKit: VPN профили" />
+  <img src="docs/screenshots/routekit-services.png" width="260" alt="RouteKit: сервисы и режимы" />
+</p>
 
-- главный экран со статусом модуля и блоком обновлений;
-- раскрытый блок VPN-профилей с группой, ping и активным профилем;
-- список сервисов с разными режимами `VPN`, `zapret`, `direct`;
+Ещё полезно добавить такие экраны:
+
 - окно настройки сервиса с доменами и режимом;
 - окно диагностики сервиса со статусом `OK`;
 - экран Magisk/KernelSU с модулем RouteKit и кнопкой обновления, если она отображается.
@@ -193,6 +197,7 @@ Module id всё ещё `zapret2_manager`, чтобы не ломать суще
 - Не коммитьте реальные VPN-профили, UUID, private keys или generated runtime configs.
 - `module/files/config/profiles/`, `proxy.json`, `active_profile.txt` и runtime logs намеренно игнорируются git.
 - Transparent proxy сейчас IPv4-focused. IPv6 entries определяются, но для IPv4-only transproxy рекомендуется держать IPv6 block включённым.
+- Native binaries в module payload сейчас рассчитаны на `arm64-v8a`/AArch64.
 - Большие native binaries сейчас лежат прямо в репозитории. GitHub может предупреждать о `sing-box` больше 50 MB. Позже можно вынести binaries в Git LFS или release assets.
 
 ## Статус

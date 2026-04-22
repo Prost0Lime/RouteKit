@@ -4,6 +4,7 @@
 
 - Make Russian README the default documentation entry point.
 - Add English README link and VPN Detector screenshots.
+- Add RouteKit UI screenshots and document current arm64-v8a binary target.
 - Document RouteKit's non-`VpnService`/non-TUN routing model and detection test results.
 
 ## 0.9.0 - 2026-04-22
