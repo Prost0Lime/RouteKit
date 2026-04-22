@@ -1,9 +1,9 @@
-package com.example.zapret2manager
+package io.github.prost0lime.routekit
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.zapret2manager.databinding.ItemProfileBinding
+import io.github.prost0lime.routekit.databinding.ItemProfileBinding
 
 class ProfilesAdapter(
     private val onActivate: (ProxyProfile) -> Unit,

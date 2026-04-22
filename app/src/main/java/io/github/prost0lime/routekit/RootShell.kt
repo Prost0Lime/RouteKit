@@ -1,4 +1,4 @@
-package com.example.zapret2manager
+package io.github.prost0lime.routekit
 
 import java.io.BufferedReader
 import java.io.InputStreamReader

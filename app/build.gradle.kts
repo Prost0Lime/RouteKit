@@ -4,22 +4,47 @@ plugins {
 }
 
 android {
-    namespace = "com.example.zapret2manager"
+    namespace = "io.github.prost0lime.routekit"
     compileSdk = 34
 
+    val releaseKeystorePath = System.getenv("ROUTEKIT_KEYSTORE_PATH")
+    val releaseKeystorePassword = System.getenv("ROUTEKIT_KEYSTORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("ROUTEKIT_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("ROUTEKIT_KEY_PASSWORD")
+    val hasReleaseSigning = listOf(
+        releaseKeystorePath,
+        releaseKeystorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword
+    ).all { !it.isNullOrBlank() }
+
     defaultConfig {
-        applicationId = "com.example.zapret2manager"
+        applicationId = "io.github.prost0lime.routekit"
         minSdk = 24
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.8.2"
+        versionCode = 10
+        versionName = "0.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("routekitRelease") {
+            if (hasReleaseSigning) {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseKeystorePassword!!
+                keyAlias = releaseKeyAlias!!
+                keyPassword = releaseKeyPassword!!
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("routekitRelease")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -34,6 +59,7 @@ android {
         jvmTarget = "17"
     }
     buildFeatures {
+        buildConfig = true
         viewBinding = true
     }
 }

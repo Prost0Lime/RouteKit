@@ -1,4 +1,4 @@
-package com.example.zapret2manager
+package io.github.prost0lime.routekit
 
 data class ShellResult(
     val code: Int,
@@ -81,6 +81,14 @@ data class DomainValidation(
     val hasIssues: Boolean
         get() = invalidDomains.isNotEmpty() || duplicateDomains.isNotEmpty() || conflicts.isNotEmpty()
 }
+
+data class UpdateInfo(
+    val version: String,
+    val tag: String,
+    val releaseUrl: String,
+    val apkUrl: String?,
+    val moduleUrl: String?
+)
 
 data class StrategyItem(
     val id: String,

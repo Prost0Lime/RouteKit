@@ -1,8 +1,9 @@
-package com.example.zapret2manager
+package io.github.prost0lime.routekit
 
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
@@ -21,10 +22,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.example.zapret2manager.databinding.ActivityMainBinding
-import com.example.zapret2manager.databinding.DialogCustomServiceBinding
-import com.example.zapret2manager.databinding.DialogImportTextBinding
-import com.example.zapret2manager.databinding.DialogServiceModeBinding
+import io.github.prost0lime.routekit.databinding.ActivityMainBinding
+import io.github.prost0lime.routekit.databinding.DialogCustomServiceBinding
+import io.github.prost0lime.routekit.databinding.DialogImportTextBinding
+import io.github.prost0lime.routekit.databinding.DialogServiceModeBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnRefresh.setOnClickListener { if (!actionInProgress) refreshAll() }
         binding.btnStartAll.setOnClickListener { startModulePipeline() }
         binding.btnStopAll.setOnClickListener { runAction("Выключение модуля", "Выключено", repo::stopAll) }
+        binding.btnCheckUpdates.setOnClickListener { checkForUpdates() }
         binding.btnAddService.setOnClickListener { showAddServiceDialog() }
         binding.btnImportCustomServices.setOnClickListener { showImportCustomServicesDialog() }
         binding.btnExportCustomServices.setOnClickListener { exportCustomServices() }
@@ -211,7 +213,7 @@ class MainActivity : AppCompatActivity() {
         outer.addView(header)
         if (expanded) {
             sortedProfiles.forEach { item ->
-                val itemBinding = com.example.zapret2manager.databinding.ItemProfileBinding.inflate(layoutInflater, outer, false)
+                val itemBinding = io.github.prost0lime.routekit.databinding.ItemProfileBinding.inflate(layoutInflater, outer, false)
                 itemBinding.tvProfileName.text = item.name
                 val pingText = when {
                     !pingMap.containsKey(item.id) -> ""
@@ -417,11 +419,61 @@ class MainActivity : AppCompatActivity() {
             binding.btnImportFile,
             binding.btnAddService,
             binding.btnImportCustomServices,
-            binding.btnExportCustomServices
+            binding.btnExportCustomServices,
+            binding.btnCheckUpdates
         ).forEach { it.isEnabled = enabled }
         servicesAdapter.setActionsEnabled(enabled)
         binding.containerProfiles.isEnabled = enabled
         binding.rvServices.isEnabled = enabled
+    }
+
+    private fun checkForUpdates() {
+        guardedAction("Проверка обновлений", "Запрос GitHub Releases") {
+            val moduleVersion = withContext(Dispatchers.IO) { repo.moduleVersion() }.ifBlank { "unknown" }
+            val latest = try {
+                withContext(Dispatchers.IO) { repo.fetchLatestRelease() }
+            } catch (t: Throwable) {
+                binding.tvUpdateStatus.text = "Не удалось проверить обновления: ${t.message ?: "unknown error"}"
+                setUiBusy(false, "Ошибка обновления", "GitHub Releases недоступен")
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Не удалось проверить обновления")
+                    .setMessage(t.message ?: t.toString())
+                    .setPositiveButton("OK", null)
+                    .show()
+                return@guardedAction
+            }
+            val currentAppVersion = BuildConfig.VERSION_NAME
+            val hasUpdate = compareVersions(latest.version, currentAppVersion) > 0 ||
+                (moduleVersion != "unknown" && compareVersions(latest.version, moduleVersion) > 0)
+
+            binding.tvUpdateStatus.text = buildString {
+                append("APK: $currentAppVersion")
+                append("  •  модуль: $moduleVersion")
+                append("  •  latest: ${latest.tag.ifBlank { latest.version }}")
+            }
+            setUiBusy(false, if (hasUpdate) "Есть обновление" else "Обновлений нет", "Latest release: ${latest.tag.ifBlank { latest.version }}")
+
+            val message = buildString {
+                append("Текущая APK: $currentAppVersion\n")
+                append("Текущий модуль: $moduleVersion\n")
+                append("GitHub release: ${latest.tag.ifBlank { latest.version }}\n\n")
+                if (hasUpdate) append("Доступна новая версия. Открой релиз и скачай APK/модуль вручную.\n")
+                else append("Установленная версия выглядит актуальной.\n")
+                if (!latest.apkUrl.isNullOrBlank()) append("\nAPK: ${latest.apkUrl}")
+                if (!latest.moduleUrl.isNullOrBlank()) append("\nModule: ${latest.moduleUrl}")
+            }
+
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle(if (hasUpdate) "Доступно обновление" else "Обновлений нет")
+                .setMessage(message)
+                .setNegativeButton("Закрыть", null)
+                .setNeutralButton("Копировать") { _, _ ->
+                    copyToClipboard("RouteKit release", latest.releaseUrl)
+                    toast("Ссылка скопирована")
+                }
+                .setPositiveButton("Открыть релиз") { _, _ -> openUrl(latest.releaseUrl) }
+                .show()
+        }
     }
 
     private fun showAddServiceDialog() {
@@ -1107,6 +1159,30 @@ class MainActivity : AppCompatActivity() {
     private fun copyToClipboard(label: String, text: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+    }
+
+    private fun openUrl(url: String) {
+        if (url.isBlank()) {
+            toast("Ссылка недоступна")
+            return
+        }
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: Throwable) {
+            toast("Не удалось открыть ссылку")
+        }
+    }
+
+    private fun compareVersions(left: String, right: String): Int {
+        val leftParts = left.removePrefix("v").split('.', '-', '_').map { it.toIntOrNull() ?: 0 }
+        val rightParts = right.removePrefix("v").split('.', '-', '_').map { it.toIntOrNull() ?: 0 }
+        val max = maxOf(leftParts.size, rightParts.size)
+        for (i in 0 until max) {
+            val l = leftParts.getOrElse(i) { 0 }
+            val r = rightParts.getOrElse(i) { 0 }
+            if (l != r) return l.compareTo(r)
+        }
+        return 0
     }
 
     private fun readClipboardText(): String {

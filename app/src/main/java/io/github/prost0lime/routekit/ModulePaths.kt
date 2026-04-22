@@ -1,4 +1,4 @@
-package com.example.zapret2manager
+package io.github.prost0lime.routekit
 
 object ModulePaths {
     const val MODULE_BASE = "/data/adb/modules/zapret2_manager/files"

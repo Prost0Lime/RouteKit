@@ -41,23 +41,44 @@ tools/dnsresolve/        Helper resolver source/build scripts
 - Android 7.0+ for the manager app.
 - A working VLESS profile if you want to use `VPN` mode.
 
+## Download
+
+Download APK and module zip from the latest GitHub Release:
+
+<https://github.com/Prost0Lime/RouteKit/releases/latest>
+
 ## Build APK
 
 The Android project uses Gradle with Android Gradle Plugin 8.5.2 and Kotlin 1.9.24.
 
-If you have a local Gradle installation:
+For quick local checks without a release keystore:
 
 ```bash
 gradle :app:assembleDebug
 ```
 
+If you have a local Gradle installation:
+
+```bash
+gradle :app:assembleRelease
+```
+
 If you add a Gradle wrapper later:
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
 ```
 
 The APK will be produced under `app/build/outputs/apk/`.
+
+Release signing is configured through environment variables:
+
+```text
+ROUTEKIT_KEYSTORE_PATH
+ROUTEKIT_KEYSTORE_PASSWORD
+ROUTEKIT_KEY_ALIAS
+ROUTEKIT_KEY_PASSWORD
+```
 
 The repository currently contains `gradle-wrapper.properties`, but does not include generated wrapper scripts/jar yet. Generate them with:
 
@@ -90,13 +111,15 @@ Release builds are automated with GitHub Actions.
 Push a tag like:
 
 ```bash
-git tag v0.8.2
-git push origin v0.8.2
+git tag v0.9.0
+git push origin v0.9.0
 ```
 
 The workflow builds the APK, packages the module zip, and attaches both files to the GitHub Release.
 
 See [docs/RELEASE.md](docs/RELEASE.md) for the checklist and [CHANGELOG.md](CHANGELOG.md) for release notes.
+
+Magisk update metadata is published through [update.json](update.json). The module id remains `zapret2_manager` for compatibility.
 
 ## Module
 
@@ -111,6 +134,8 @@ Important runtime paths on device:
 ```
 
 The module id is still `zapret2_manager` for compatibility with existing installs and scripts.
+
+The Android app package id for public releases is `io.github.prost0lime.routekit`. Older beta builds used `com.example.zapret2manager`, so uninstall the old beta app before installing `v0.9.0+` if Android shows a duplicate app.
 
 ## Typical Flow
 

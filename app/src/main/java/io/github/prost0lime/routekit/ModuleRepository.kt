@@ -1,11 +1,67 @@
-package com.example.zapret2manager
+package io.github.prost0lime.routekit
 
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 class ModuleRepository {
 
     fun healthcheck(): String = sh("sh ${ModulePaths.SCRIPTS}/healthcheck.sh").stdout.ifBlank { "no output" }
+
+    fun moduleVersion(): String {
+        val out = sh("grep '^version=' ${ModulePaths.MODULE_BASE}/../module.prop 2>/dev/null || grep '^version=' ${ModulePaths.MODULE_BASE}/module.prop 2>/dev/null").stdout
+        return out.lineSequence()
+            .map { it.trim() }
+            .firstOrNull { it.startsWith("version=") }
+            ?.substringAfter("=")
+            .orEmpty()
+    }
+
+    fun fetchLatestRelease(): UpdateInfo {
+        val connection = (URL("https://api.github.com/repos/Prost0Lime/RouteKit/releases/latest").openConnection() as HttpURLConnection).apply {
+            connectTimeout = 8000
+            readTimeout = 8000
+            requestMethod = "GET"
+            setRequestProperty("Accept", "application/vnd.github+json")
+            setRequestProperty("User-Agent", "RouteKit")
+        }
+        var responseCode = -1
+        val body = try {
+            responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+            stream.bufferedReader().use { it.readText() }
+        } finally {
+            connection.disconnect()
+        }
+        if (responseCode !in 200..299) {
+            throw IllegalStateException("GitHub releases request failed: HTTP $responseCode")
+        }
+        val json = JSONObject(body)
+        val tag = json.optString("tag_name")
+        if (tag.isBlank()) {
+            throw IllegalStateException("GitHub latest release has no tag_name")
+        }
+        val assets = json.optJSONArray("assets")
+        var apkUrl: String? = null
+        var moduleUrl: String? = null
+        if (assets != null) {
+            for (i in 0 until assets.length()) {
+                val asset = assets.optJSONObject(i) ?: continue
+                val name = asset.optString("name")
+                val url = asset.optString("browser_download_url")
+                if (name.endsWith(".apk")) apkUrl = url
+                if (name.endsWith(".zip") && name.contains("module", ignoreCase = true)) moduleUrl = url
+            }
+        }
+        return UpdateInfo(
+            version = tag.removePrefix("v"),
+            tag = tag,
+            releaseUrl = json.optString("html_url"),
+            apkUrl = apkUrl,
+            moduleUrl = moduleUrl
+        )
+    }
 
     fun healthcheckParsed(): HealthStatus {
         val raw = healthcheck()

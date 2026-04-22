@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-release:
-    name: Build APK and module zip
+    name: Build signed APK and module zip
     runs-on: ubuntu-latest
 
     steps:
@@ -36,8 +36,28 @@ jobs:
           unzip -q /tmp/gradle.zip -d "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/gradle-${GRADLE_VERSION}/bin" >> "$GITHUB_PATH"
 
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --no-daemon
+      - name: Prepare release signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${ANDROID_KEYSTORE_BASE64}" || -z "${ANDROID_KEYSTORE_PASSWORD}" || -z "${ANDROID_KEY_ALIAS}" || -z "${ANDROID_KEY_PASSWORD}" ]]; then
+            echo "::error::Missing Android signing secrets. Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+          keystore_path="$RUNNER_TEMP/routekit-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore_path"
+          echo "ROUTEKIT_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+          echo "ROUTEKIT_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ROUTEKIT_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ROUTEKIT_KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        run: gradle :app:assembleRelease --no-daemon
 
       - name: Package module zip
         run: sh tools/package-module.sh
@@ -47,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk release-artifacts/RouteKit-app-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk release-artifacts/RouteKit-app-release.apk
           cp dist/*.zip release-artifacts/
           ls -la release-artifacts
 
@@ -70,5 +90,5 @@ jobs:
           else
             gh release create "$tag" release-artifacts/* \
               --title "RouteKit ${tag}" \
-              --notes "Automated RouteKit beta build."
+              --notes-file CHANGELOG.md
           fi

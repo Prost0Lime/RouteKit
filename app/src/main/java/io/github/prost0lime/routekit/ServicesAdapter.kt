@@ -1,10 +1,10 @@
-package com.example.zapret2manager
+package io.github.prost0lime.routekit
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.zapret2manager.databinding.ItemServiceBinding
+import io.github.prost0lime.routekit.databinding.ItemServiceBinding
 
 class ServicesAdapter(
     private val onSetMode: (ServiceItem, String) -> Unit,

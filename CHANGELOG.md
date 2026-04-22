@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.8.2 - Unreleased
+## 0.9.0 - Unreleased
+
+- Change Android application id to `io.github.prost0lime.routekit`.
+- Prepare signed release APK builds through GitHub Actions secrets.
+- Add Magisk update metadata with `updateJson` and `update.json`.
+- Add in-app GitHub release update checker.
+- Refresh release documentation and RouteKit launcher icon.
+
+## 0.8.2 - 2026-04-22
 
 - Synchronize Android app and module version metadata.
 - Add release notes and checklist documentation for repeatable GitHub releases.
