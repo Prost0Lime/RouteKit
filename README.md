@@ -90,13 +90,13 @@ Release builds are automated with GitHub Actions.
 Push a tag like:
 
 ```bash
-git tag v0.8.1
-git push origin v0.8.1
+git tag v0.8.2
+git push origin v0.8.2
 ```
 
 The workflow builds the APK, packages the module zip, and attaches both files to the GitHub Release.
 
-See [docs/RELEASE.md](docs/RELEASE.md) for the checklist.
+See [docs/RELEASE.md](docs/RELEASE.md) for the checklist and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Module
 

@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.zapret2manager"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0-ui"
+        versionCode = 9
+        versionName = "0.8.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
