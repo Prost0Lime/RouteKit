@@ -6,6 +6,7 @@
 - Add English README link and VPN Detector screenshots.
 - Add RouteKit UI screenshots and document current arm64-v8a binary target.
 - Document RouteKit's non-`VpnService`/non-TUN routing model and detection test results.
+- Add notes about where detection checks can still produce indirect network signals.
 
 ## 0.9.0 - 2026-04-22
 

@@ -12,6 +12,25 @@ It combines a Magisk/KernelSU-style module, a small Android manager app, `sing-b
 
 The project is currently in beta and is intended for rooted Android devices.
 
+## Detection Notes
+
+RouteKit does not use Android `VpnService` and does not create a typical user-space TUN interface such as `tun0`.
+
+In the tested scenario, RouteKit did not expose the usual Android VPN signals:
+
+- `TRANSPORT_VPN`: not detected.
+- `VpnService`: not active for RouteKit.
+- TUN/TAP/WireGuard/PPP-like interfaces: not detected.
+- Default route remains on a regular interface such as `wlan0`.
+- `NET_CAPABILITY_NOT_VPN`: present.
+- Android `ProxyInfo` HTTP/SOCKS proxy: not configured.
+- Open localhost proxy after stopping unrelated apps: not detected.
+- IP checkers only saw the public exit IP, not the final VLESS server address.
+
+This does not mean the device is invisible to every network heuristic. Apps can still infer unusual routing from ICMP/ping behavior, latency, DNS, CDN region, TLS/HTTP behavior, destination reachability, or unrelated local proxy listeners from other apps.
+
+In an updated `rknhardering` scan with RouteKit enabled, direct VPN indicators were absent, localhost proxy was absent, bypass was not confirmed, RU and non-RU IP checkers agreed on the same public IP, and the remaining `NEEDS_REVIEW` signal came only from an ICMP/RTT heuristic for `instagram.com`.
+
 ## Features
 
 - Android UI for managing service modes, custom services, and VLESS profiles.
