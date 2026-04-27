@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
     private var vpnSectionExpanded: Boolean = true
     private var pendingApplyReason: String? = null
     private var currentProfiles: List<ProxyProfile> = emptyList()
+    private var currentProfileGroups: Map<String, ProfileGroup> = emptyMap()
     private val expandedProfileGroups = mutableSetOf<String>()
     private val profilePingMsByGroup = mutableMapOf<String, Map<String, Int?>>()
 
@@ -105,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     private suspend fun refreshData() {
         currentHealth = withContext(Dispatchers.IO) { repo.healthcheckParsed() }
         val profiles = withContext(Dispatchers.IO) { repo.listProfiles() }
+        val groups = withContext(Dispatchers.IO) { repo.listProfileGroups() }
         val services = withContext(Dispatchers.IO) { repo.listServices() }
         tcpStrategies = withContext(Dispatchers.IO) { repo.loadStrategies("tcp") }
         udpStrategies = withContext(Dispatchers.IO) { repo.loadStrategies("udp") }
@@ -112,6 +114,7 @@ class MainActivity : AppCompatActivity() {
         zapretProfiles = withContext(Dispatchers.IO) { repo.listZapretProfiles() }
 
         renderStatus(currentHealth)
+        currentProfileGroups = groups.associateBy { it.id }
         renderProfiles(profiles)
         servicesAdapter.submitList(services)
         servicesAdapter.setActionsEnabled(!actionInProgress)
@@ -142,6 +145,7 @@ class MainActivity : AppCompatActivity() {
         val first = profiles.first()
         val expanded = expandedProfileGroups.contains(groupKey)
         val pingMap = profilePingMsByGroup[groupKey].orEmpty()
+        val group = currentProfileGroups[groupKey]
         val sortedProfiles = if (pingMap.isNotEmpty()) {
             profiles.sortedWith(
                 compareBy<ProxyProfile> { pingMap[it.id] ?: Int.MAX_VALUE }
@@ -188,19 +192,11 @@ class MainActivity : AppCompatActivity() {
         titleBlock.addView(title)
         titleBlock.addView(subtitle)
 
-        val pingButton = com.google.android.material.button.MaterialButton(this).apply {
-            text = "Пинг"
-            minWidth = dp(72)
-            minimumHeight = dp(44)
-            isEnabled = !actionInProgress
-            setOnClickListener { if (!actionInProgress) pingProfileGroup(groupKey, first.groupName) }
-        }
         val toggle = android.widget.TextView(this).apply {
             text = if (expanded) "Свернуть" else "Развернуть"
             setPadding(dp(10), dp(8), 0, dp(8))
         }
         header.addView(titleBlock)
-        header.addView(pingButton)
         header.addView(toggle)
         header.setOnClickListener {
             if (actionInProgress) return@setOnClickListener
@@ -214,6 +210,41 @@ class MainActivity : AppCompatActivity() {
         }
 
         outer.addView(header)
+        if (groupKey != "__ungrouped") {
+            val actions = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                setPadding(0, dp(10), 0, 0)
+            }
+            val pingButton = com.google.android.material.button.MaterialButton(this).apply {
+                text = "Пинг"
+                minWidth = 0
+                isEnabled = !actionInProgress
+                setOnClickListener { if (!actionInProgress) pingProfileGroup(groupKey, first.groupName) }
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            val updateButton = com.google.android.material.button.MaterialButton(this).apply {
+                text = "Обновить"
+                minWidth = 0
+                isEnabled = !actionInProgress && group?.hasSourceUrl == true
+                setOnClickListener { if (!actionInProgress) updateProfileGroup(groupKey, first.groupName) }
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(8)
+                }
+            }
+            val deleteButton = com.google.android.material.button.MaterialButton(this).apply {
+                text = "Удалить"
+                minWidth = 0
+                isEnabled = !actionInProgress
+                setOnClickListener { if (!actionInProgress) deleteProfileGroup(groupKey, first.groupName) }
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(8)
+                }
+            }
+            actions.addView(pingButton)
+            actions.addView(updateButton)
+            actions.addView(deleteButton)
+            outer.addView(actions)
+        }
         if (expanded) {
             sortedProfiles.forEach { item ->
                 val itemBinding = io.github.prost0lime.routekit.databinding.ItemProfileBinding.inflate(layoutInflater, outer, false)
@@ -252,6 +283,44 @@ class MainActivity : AppCompatActivity() {
             toast("Ping: $okCount/${results.size} профилей ответили")
             setUiBusy(false, "Готово", "Ping профилей обновлён")
         }
+    }
+
+    private fun updateProfileGroup(groupKey: String, groupName: String) {
+        guardedAction("Обновление VPN-группы", groupName.ifBlank { groupKey }) {
+            val result = withContext(Dispatchers.IO) { repo.updateProfileGroup(groupKey) }
+            if (result.code == 0) {
+                profilePingMsByGroup.remove(groupKey)
+                setUiBusy(true, "Обновление VPN-группы", "Обновление статуса")
+                refreshData()
+                toast("VPN-группа обновлена")
+                setUiBusy(false, "Готово", "Профили обновлены из сохранённой ссылки")
+            } else {
+                showOutput("Не удалось обновить VPN-группу", result)
+            }
+        }
+    }
+
+    private fun deleteProfileGroup(groupKey: String, groupName: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Удалить группу VPN?")
+            .setMessage("${groupName.ifBlank { groupKey }}\nБудут удалены все профили внутри группы.")
+            .setNegativeButton("Отмена", null)
+            .setPositiveButton("Удалить") { _, _ ->
+                guardedAction("Удаление VPN-группы", groupName.ifBlank { groupKey }) {
+                    val result = withContext(Dispatchers.IO) { repo.deleteProfileGroup(groupKey) }
+                    if (result.code == 0) {
+                        expandedProfileGroups.remove(groupKey)
+                        profilePingMsByGroup.remove(groupKey)
+                        setUiBusy(true, "Удаление VPN-группы", "Обновление статуса")
+                        refreshData()
+                        toast("VPN-группа удалена")
+                        setUiBusy(false, "Готово", "Группа и профили удалены")
+                    } else {
+                        showOutput("Не удалось удалить VPN-группу", result)
+                    }
+                }
+            }
+            .show()
     }
 
     private fun dp(value: Int): Int =

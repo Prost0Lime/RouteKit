@@ -53,5 +53,10 @@ if [ "$RC" -ne 0 ] || [ -z "$GROUP_ID" ]; then
   exit 1
 fi
 
+GROUP_DIR="$CFG_DIR/groups/$GROUP_ID"
+if [ -d "$GROUP_DIR" ]; then
+  printf '%s\n' "$URL" > "$GROUP_DIR/source_url.txt"
+fi
+
 log_msg "$LOGFILE" "import_group_url done group_id=$GROUP_ID"
 echo "$GROUP_ID"

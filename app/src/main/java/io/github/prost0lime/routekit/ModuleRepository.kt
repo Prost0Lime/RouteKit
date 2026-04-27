@@ -170,6 +170,33 @@ class ModuleRepository {
             .toList()
     }
 
+    fun listProfileGroups(): List<ProfileGroup> {
+        val out = sh("sh ${ModulePaths.SCRIPTS}/list_groups.sh").stdout
+        return out.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() && it != "no groups" }
+            .mapNotNull { line ->
+                val parts = line.split("|").map { it.trim() }
+                if (parts.size < 4) return@mapNotNull null
+                fun valueOf(prefix: String): String =
+                    parts.firstOrNull { it.startsWith("$prefix=") }?.substringAfter('=', "").orEmpty()
+                ProfileGroup(
+                    id = parts[0],
+                    name = parts[1],
+                    profileCount = valueOf("profiles").toIntOrNull() ?: 0,
+                    hasActiveProfile = valueOf("active") == "yes",
+                    hasSourceUrl = valueOf("source_url") == "yes"
+                )
+            }
+            .toList()
+    }
+
+    fun updateProfileGroup(groupId: String): ShellResult =
+        sh("sh ${ModulePaths.SCRIPTS}/update_group_url.sh ${shellQuote(groupId)}")
+
+    fun deleteProfileGroup(groupId: String): ShellResult =
+        sh("sh ${ModulePaths.SCRIPTS}/delete_group.sh ${shellQuote(groupId)}")
+
     fun importSubscription(url: String, groupName: String?): ShellResult {
         val escapedUrl = shellQuote(url)
         val cmd = if (groupName.isNullOrBlank()) {

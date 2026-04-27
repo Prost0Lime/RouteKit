@@ -23,6 +23,14 @@ data class ProfilePingResult(
     val endpoint: String
 )
 
+data class ProfileGroup(
+    val id: String,
+    val name: String,
+    val profileCount: Int,
+    val hasActiveProfile: Boolean,
+    val hasSourceUrl: Boolean
+)
+
 data class ServiceItem(
     val id: String,
     val name: String,

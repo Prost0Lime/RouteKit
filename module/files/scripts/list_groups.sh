@@ -13,6 +13,7 @@ for dir in "$GROUPS_DIR"/group_*; do
   GROUP_ID="$(basename "$dir")"
   NAME_FILE="$dir/name.txt"
   PROFILES_FILE="$dir/profiles.txt"
+  SOURCE_FILE="$dir/source_url.txt"
 
   GROUP_NAME=""
   [ -f "$NAME_FILE" ] && GROUP_NAME="$(cat "$NAME_FILE" 2>/dev/null | tr -d '\r')"
@@ -28,7 +29,10 @@ for dir in "$GROUPS_DIR"/group_*; do
     fi
   fi
 
-  echo "$GROUP_ID | $GROUP_NAME | profiles=$COUNT | active=$HAS_ACTIVE"
+  HAS_SOURCE="no"
+  [ -s "$SOURCE_FILE" ] && HAS_SOURCE="yes"
+
+  echo "$GROUP_ID | $GROUP_NAME | profiles=$COUNT | active=$HAS_ACTIVE | source_url=$HAS_SOURCE"
   FOUND=1
 done
 
