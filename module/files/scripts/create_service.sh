@@ -71,4 +71,5 @@ UDP_IPSET="\$CFG_DIR/ipsets/$SERVICE_ID.txt"
 STUN_HOSTLIST=""
 STUN_IPSET=""
 EOT
+mark_service_apply_dirty full
 echo "$SERVICE_ID"

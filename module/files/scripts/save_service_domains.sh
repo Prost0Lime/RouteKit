@@ -38,4 +38,11 @@ normalize_domains_file() {
 }
 
 normalize_domains_file "$SRC_FILE" > "$TARGET"
+MODE="direct"
+. "$MODE_FILE"
+if [ "$MODE" = "zapret" ]; then
+  mark_service_apply_dirty zapret
+else
+  mark_service_apply_dirty full
+fi
 echo ok

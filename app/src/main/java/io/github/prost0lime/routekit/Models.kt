@@ -90,6 +90,12 @@ data class UpdateInfo(
     val moduleUrl: String?
 )
 
+data class ModuleSettings(
+    val collectIpv6: Boolean,
+    val dnsResolveRepeat: Int,
+    val ipv6BlockEnabled: Boolean
+)
+
 data class StrategyItem(
     val id: String,
     val description: String

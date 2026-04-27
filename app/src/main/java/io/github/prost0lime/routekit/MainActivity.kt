@@ -22,6 +22,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.slider.Slider
+import com.google.android.material.switchmaterial.SwitchMaterial
 import io.github.prost0lime.routekit.databinding.ActivityMainBinding
 import io.github.prost0lime.routekit.databinding.DialogCustomServiceBinding
 import io.github.prost0lime.routekit.databinding.DialogImportTextBinding
@@ -67,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnRefresh.setOnClickListener { if (!actionInProgress) refreshAll() }
         binding.btnStartAll.setOnClickListener { startModulePipeline() }
         binding.btnStopAll.setOnClickListener { runAction("Выключение модуля", "Выключено", repo::stopAll) }
+        binding.btnModuleSettings.setOnClickListener { showModuleSettingsDialog() }
         binding.btnCheckUpdates.setOnClickListener { checkForUpdates() }
         binding.btnAddService.setOnClickListener { showAddServiceDialog() }
         binding.btnImportCustomServices.setOnClickListener { showImportCustomServicesDialog() }
@@ -420,6 +423,7 @@ class MainActivity : AppCompatActivity() {
             binding.btnAddService,
             binding.btnImportCustomServices,
             binding.btnExportCustomServices,
+            binding.btnModuleSettings,
             binding.btnCheckUpdates
         ).forEach { it.isEnabled = enabled }
         servicesAdapter.setActionsEnabled(enabled)
@@ -473,6 +477,92 @@ class MainActivity : AppCompatActivity() {
                 }
                 .setPositiveButton("Открыть релиз") { _, _ -> openUrl(latest.releaseUrl) }
                 .show()
+        }
+    }
+
+    private fun showModuleSettingsDialog() {
+        if (actionInProgress) {
+            toast("Дождись завершения текущей операции")
+            return
+        }
+        lifecycleScope.launch {
+            val settings = withContext(Dispatchers.IO) { repo.loadModuleSettings() }
+            val container = android.widget.LinearLayout(this@MainActivity).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(dp(8), dp(4), dp(8), dp(4))
+            }
+            val intro = TextView(this@MainActivity).apply {
+                text = "Эти параметры влияют на сбор IP для VPN-сервисов и на IPv6-блокировку. После изменения нажми «Применить», чтобы пересобрать правила."
+                textSize = 14f
+            }
+            val collectIpv6 = SwitchMaterial(this@MainActivity).apply {
+                text = "Собирать IPv6/AAAA для диагностики"
+                isChecked = settings.collectIpv6
+            }
+            val blockIpv6 = SwitchMaterial(this@MainActivity).apply {
+                text = "Блокировать IPv6 на устройстве"
+                isChecked = settings.ipv6BlockEnabled
+            }
+            val repeatLabel = TextView(this@MainActivity).apply {
+                textSize = 14f
+                setPadding(0, dp(12), 0, 0)
+            }
+            val repeatSlider = Slider(this@MainActivity).apply {
+                valueFrom = 1f
+                valueTo = 10f
+                stepSize = 1f
+                value = settings.dnsResolveRepeat.coerceIn(1, 10).toFloat()
+            }
+            fun updateRepeatLabel() {
+                repeatLabel.text = "Повторы DNS-запросов при сборе доменов: ${repeatSlider.value.toInt()}"
+            }
+            repeatSlider.addOnChangeListener { _, _, _ -> updateRepeatLabel() }
+            updateRepeatLabel()
+
+            container.addView(intro)
+            container.addView(collectIpv6)
+            container.addView(blockIpv6)
+            container.addView(repeatLabel)
+            container.addView(repeatSlider)
+
+            val dialog = AlertDialog.Builder(this@MainActivity)
+                .setTitle("Настройки модуля")
+                .setView(container)
+                .setNeutralButton("Пояснение", null)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Сохранить", null)
+                .show()
+
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Что это значит")
+                    .setMessage(
+                        "IPv6 сейчас не проксируется через transproxy: правила прозрачного прокси работают по IPv4. Поэтому IPv6 обычно либо блокируется, либо используется только как диагностический сигнал.\n\n" +
+                            "Повторы DNS помогают собрать больше CDN-IP для доменов вроде Cloudflare/LiveKit/Google. Чем выше число, тем полнее покрытие, но тем дольше пересборка IP."
+                    )
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val next = ModuleSettings(
+                    collectIpv6 = collectIpv6.isChecked,
+                    dnsResolveRepeat = repeatSlider.value.toInt().coerceIn(1, 10),
+                    ipv6BlockEnabled = blockIpv6.isChecked
+                )
+                dialog.dismiss()
+                guardedAction("Сохранение настроек", "Обновление поведения модуля") {
+                    val result = withContext(Dispatchers.IO) { repo.saveModuleSettings(next) }
+                    if (result.code == 0) {
+                        pendingApplyReason = "Настройки модуля изменены"
+                        setUiBusy(true, "Сохранение настроек", "Обновление статуса")
+                        refreshData()
+                        toast("Настройки сохранены")
+                        setUiBusy(false, "Нужно применить", "Нажми Применить, чтобы пересобрать правила")
+                    } else {
+                        showOutput("Не удалось сохранить настройки", result)
+                    }
+                }
+            }
         }
     }
 
@@ -903,6 +993,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 saveServiceChanges(
                     service.id,
+                    details.mode,
+                    details.tcpStrategy,
+                    details.udpStrategy,
+                    details.stunStrategy,
+                    domainsText,
                     mode,
                     (dialogBinding.spinnerTcp.selectedItem as? StrategyItem)?.id.orEmpty(),
                     (dialogBinding.spinnerUdp.selectedItem as? StrategyItem)?.id.orEmpty(),
@@ -1025,7 +1120,19 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun saveServiceChanges(serviceId: String, mode: String, tcp: String, udp: String, stun: String, domainsText: String) {
+    private fun saveServiceChanges(
+        serviceId: String,
+        originalMode: String,
+        originalTcp: String,
+        originalUdp: String,
+        originalStun: String,
+        originalDomainsText: String,
+        mode: String,
+        tcp: String,
+        udp: String,
+        stun: String,
+        domainsText: String
+    ) {
         guardedAction("Сохранение сервиса", serviceId) {
             if (mode == "vpn" && !hasDomainEntries(domainsText)) {
                 toast("Для VPN-сервиса нужны домены")
@@ -1060,46 +1167,62 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (!proceed) return@guardedAction
             }
-            val domainsResult = withContext(Dispatchers.IO) { repo.saveServiceDomains(serviceId, domainsText) }
-            if (domainsResult.code != 0) {
-                showOutput("Не удалось сохранить домены", domainsResult)
-                return@guardedAction
+            val domainsChanged = domainsText.trim() != originalDomainsText.trim()
+            val modeChanged = mode != originalMode
+            val strategiesChanged = tcp != originalTcp || udp != originalUdp || stun != originalStun
+
+            if (domainsChanged) {
+                val domainsResult = withContext(Dispatchers.IO) { repo.saveServiceDomains(serviceId, domainsText) }
+                if (domainsResult.code != 0) {
+                    showOutput("Не удалось сохранить домены", domainsResult)
+                    return@guardedAction
+                }
             }
-            val rebuildResult = withContext(Dispatchers.IO) { repo.rebuildServiceIpsets(serviceId, force = true) }
-            if (rebuildResult.code != 0) {
-                showOutput("Не удалось пересобрать IP-списки", rebuildResult)
-                return@guardedAction
-            }
-            val modeResult = withContext(Dispatchers.IO) { repo.setServiceMode(serviceId, mode) }
-            if (modeResult.code != 0) {
-                showOutput("Не удалось изменить режим", modeResult)
-                return@guardedAction
+            if (modeChanged) {
+                val modeResult = withContext(Dispatchers.IO) { repo.setServiceMode(serviceId, mode) }
+                if (modeResult.code != 0) {
+                    showOutput("Не удалось изменить режим", modeResult)
+                    return@guardedAction
+                }
             }
             if (mode == "zapret") {
-                val tcpResult = withContext(Dispatchers.IO) { repo.setServiceStrategy(serviceId, "tcp", tcp) }
-                val udpResult = withContext(Dispatchers.IO) { repo.setServiceStrategy(serviceId, "udp", udp) }
-                val stunResult = withContext(Dispatchers.IO) { repo.setServiceStrategy(serviceId, "stun", stun) }
-                if (tcpResult.code != 0 || udpResult.code != 0 || stunResult.code != 0) {
-                    showOutput(
-                        "Не удалось изменить стратегии",
-                        ShellResult(
-                            code = listOf(tcpResult.code, udpResult.code, stunResult.code).firstOrNull { it != 0 } ?: 1,
-                            stdout = listOf(tcpResult.stdout, udpResult.stdout, stunResult.stdout).filter { it.isNotBlank() }.joinToString("\n"),
-                            stderr = listOf(tcpResult.stderr, udpResult.stderr, stunResult.stderr).filter { it.isNotBlank() }.joinToString("\n")
+                if (strategiesChanged || modeChanged) {
+                    val tcpResult = withContext(Dispatchers.IO) { repo.setServiceStrategy(serviceId, "tcp", tcp) }
+                    val udpResult = withContext(Dispatchers.IO) { repo.setServiceStrategy(serviceId, "udp", udp) }
+                    val stunResult = withContext(Dispatchers.IO) { repo.setServiceStrategy(serviceId, "stun", stun) }
+                    if (tcpResult.code != 0 || udpResult.code != 0 || stunResult.code != 0) {
+                        showOutput(
+                            "Не удалось изменить стратегии",
+                            ShellResult(
+                                code = listOf(tcpResult.code, udpResult.code, stunResult.code).firstOrNull { it != 0 } ?: 1,
+                                stdout = listOf(tcpResult.stdout, udpResult.stdout, stunResult.stdout).filter { it.isNotBlank() }.joinToString("\n"),
+                                stderr = listOf(tcpResult.stderr, udpResult.stderr, stunResult.stderr).filter { it.isNotBlank() }.joinToString("\n")
+                            )
                         )
-                    )
+                        return@guardedAction
+                    }
+                }
+            }
+            if (mode == "vpn" && (domainsChanged || modeChanged)) {
+                val rebuildResult = withContext(Dispatchers.IO) { repo.rebuildServiceIpsets(serviceId, force = true) }
+                if (rebuildResult.code != 0) {
+                    showOutput("Не удалось пересобрать IP-списки", rebuildResult)
                     return@guardedAction
                 }
             }
             val coverage = withContext(Dispatchers.IO) { repo.getServiceCoverage(serviceId) }
-            pendingApplyReason = "Настройки сервиса $serviceId сохранены"
+            pendingApplyReason = if (domainsChanged || modeChanged || strategiesChanged) "Настройки сервиса $serviceId сохранены" else pendingApplyReason
             val warn = buildList {
                 if (coverage.unresolvedCount > 0) add("unresolved=${coverage.unresolvedCount}")
                 if (coverage.modeConflictCount > 0) add("mode_conflicts=${coverage.modeConflictCount}")
             }.joinToString(", ")
-            toast(if (warn.isBlank()) "Сервис сохранён" else "Сервис сохранён ($warn)")
+            toast(if (!domainsChanged && !modeChanged && !strategiesChanged) "Изменений нет" else if (warn.isBlank()) "Сервис сохранён" else "Сервис сохранён ($warn)")
             refreshData()
-            setUiBusy(false, "Нужно применить", "Нажми Применить, чтобы обновить правила")
+            if (pendingApplyReason != null) {
+                setUiBusy(false, "Нужно применить", "Нажми Применить, чтобы обновить правила")
+            } else {
+                setUiBusy(false, "Готово", "Настройки без изменений")
+            }
         }
     }
 

@@ -1,0 +1,12 @@
+chat.com
+chatgpt.com
+crixet.com
+oaistatic.com
+oaiusercontent.com
+openai.com
+sora.com
+chatgpt.livekit.cloud
+host.livekit.cloud
+turn.livekit.cloud
+openai.com.cdn.cloudflare.net
+files.oaiusercontent.com

@@ -292,6 +292,24 @@ class ModuleRepository {
     fun repairService(serviceId: String): ShellResult =
         sh("sh ${ModulePaths.SCRIPTS}/repair_service.sh ${shellQuote(serviceId)}")
 
+    fun loadModuleSettings(): ModuleSettings {
+        val out = sh("sh ${ModulePaths.SCRIPTS}/show_module_settings.sh").stdout
+        val map = parseVarFile(out)
+        return ModuleSettings(
+            collectIpv6 = map["COLLECT_IPV6"]?.toBooleanStrictOrNull() ?: true,
+            dnsResolveRepeat = map["DNS_RESOLVE_REPEAT"]?.toIntOrNull()?.coerceIn(1, 10) ?: 3,
+            ipv6BlockEnabled = map["IPV6_BLOCK_ENABLED"]?.toBooleanStrictOrNull() ?: true
+        )
+    }
+
+    fun saveModuleSettings(settings: ModuleSettings): ShellResult =
+        sh(
+            "sh ${ModulePaths.SCRIPTS}/set_module_settings.sh " +
+                "collect_ipv6=${settings.collectIpv6} " +
+                "dns_repeat=${settings.dnsResolveRepeat.coerceIn(1, 10)} " +
+                "ipv6_block=${settings.ipv6BlockEnabled}"
+        )
+
     fun validateServiceDomains(serviceId: String, domainsText: String): DomainValidation {
         fun normalizeEntry(value: String): String {
             val trimmed = value.trim().lowercase().removeSuffix(".")

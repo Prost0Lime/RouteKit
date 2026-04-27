@@ -14,4 +14,5 @@ BEGIN{done1=0;done2=0}
 {print}
 END{if(!done1) print "MODE=\"" mode "\""; if(vpn != "" && !done2) print "VPN_PROFILE=\"" vpn "\""}
 ' "$FILE" > "$TMP" && mv "$TMP" "$FILE"
+mark_service_apply_dirty full
 echo ok

@@ -7,9 +7,60 @@ LOG_DIR="$RUNTIME_DIR/logs"
 PID_DIR="$RUNTIME_DIR/pids"
 SOCK_DIR="$RUNTIME_DIR/sockets"
 DNS_BIN_DIR="$BASE_DIR/bin/dns"
+SETTINGS_FILE="$CFG_DIR/settings.conf"
 
 mkdir -p "$CFG_DIR" "$LOG_DIR" "$PID_DIR" "$SOCK_DIR"
 mkdir -p "$CFG_DIR/service_modes" "$CFG_DIR/services" "$CFG_DIR/hostlists" "$CFG_DIR/ipsets"
+
+ensure_module_settings() {
+  if [ ! -f "$SETTINGS_FILE" ]; then
+    cat > "$SETTINGS_FILE" <<EOT
+COLLECT_IPV6="true"
+DNS_RESOLVE_REPEAT="3"
+EOT
+  fi
+}
+
+module_setting_bool() {
+  local key="$1"
+  local fallback="$2"
+  local value=""
+  ensure_module_settings
+  value="$(grep "^$key=" "$SETTINGS_FILE" 2>/dev/null | tail -n1 | sed 's/^[^=]*=//; s/^"//; s/"$//')"
+  case "$value" in
+    true|false) printf '%s\n' "$value" ;;
+    *) printf '%s\n' "$fallback" ;;
+  esac
+}
+
+module_setting_int() {
+  local key="$1"
+  local fallback="$2"
+  local min_value="$3"
+  local max_value="$4"
+  local value=""
+  ensure_module_settings
+  value="$(grep "^$key=" "$SETTINGS_FILE" 2>/dev/null | tail -n1 | sed 's/^[^=]*=//; s/^"//; s/"$//')"
+  case "$value" in
+    ''|*[!0-9]*) value="$fallback" ;;
+  esac
+  [ "$value" -lt "$min_value" ] 2>/dev/null && value="$min_value"
+  [ "$value" -gt "$max_value" ] 2>/dev/null && value="$max_value"
+  printf '%s\n' "$value"
+}
+
+mark_service_apply_dirty() {
+  local scope="${1:-full}"
+  mkdir -p "$RUNTIME_DIR/dirty"
+  case "$scope" in
+    zapret) : > "$RUNTIME_DIR/dirty/zapret" ;;
+    *) : > "$RUNTIME_DIR/dirty/full" ;;
+  esac
+}
+
+clear_service_apply_dirty() {
+  rm -f "$RUNTIME_DIR/dirty/zapret" "$RUNTIME_DIR/dirty/full"
+}
 
 log_msg() {
   LOG_FILE="$1"

@@ -12,4 +12,11 @@ $0 ~ "^" key "=" { print key "=\"" val "\""; done=1; next }
 { print }
 END { if (!done) print key "=\"" val "\"" }
 ' "$FILE" > "$TMP" && mv "$TMP" "$FILE"
+MODE="direct"
+. "$FILE"
+if [ "$MODE" = "zapret" ]; then
+  mark_service_apply_dirty zapret
+else
+  mark_service_apply_dirty full
+fi
 echo ok

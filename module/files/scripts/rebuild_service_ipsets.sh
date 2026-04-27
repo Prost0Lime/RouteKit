@@ -41,14 +41,16 @@ mkdir -p \
 
 CURRENT_NET_FINGERPRINT="$(network_fingerprint)"
 CURRENT_NET_KEY="$(printf '%s' "$CURRENT_NET_FINGERPRINT" | cksum | awk '{print $1}')"
+COLLECT_IPV6="$(module_setting_bool COLLECT_IPV6 true)"
+[ "$COLLECT_IPV6" = "true" ] || IPV4_ONLY="true"
 
 if [ "$FAST_MODE" = "true" ]; then
   RESOLVE_RETRIES=1
 else
-  RESOLVE_RETRIES=3
+  RESOLVE_RETRIES="$(module_setting_int DNS_RESOLVE_REPEAT 3 1 10)"
 fi
 
-log_msg "$LOGFILE" "rebuild_service_ipsets begin target=${TARGET_SERVICE:-all} force=$FORCE_REBUILD vpn_only=$VPN_ONLY fast=$FAST_MODE ipv4_only=$IPV4_ONLY net=$CURRENT_NET_KEY"
+log_msg "$LOGFILE" "rebuild_service_ipsets begin target=${TARGET_SERVICE:-all} force=$FORCE_REBUILD vpn_only=$VPN_ONLY fast=$FAST_MODE ipv4_only=$IPV4_ONLY collect_ipv6=$COLLECT_IPV6 repeat=$RESOLVE_RETRIES net=$CURRENT_NET_KEY"
 
 normalize_domain() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//'

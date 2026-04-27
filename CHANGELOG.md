@@ -1,12 +1,16 @@
 # Changelog
 
-## 0.9.1 - Unreleased
+## 0.9.1 - 2026-04-27
 
 - Make Russian README the default documentation entry point.
 - Add English README link and VPN Detector screenshots.
 - Add RouteKit UI screenshots and document current arm64-v8a binary target.
 - Document RouteKit's non-`VpnService`/non-TUN routing model and detection test results.
 - Add notes about where detection checks can still produce indirect network signals.
+- Add a default ChatGPT service in direct mode.
+- Change the default YouTube zapret strategies to `syndata_multidisorder_tls_google_700` and `fake_6_google_quic`.
+- Add module settings for IPv6 collection, IPv6 blocking and DNS resolve repeat count.
+- Speed up zapret-only strategy apply without rebuilding VPN/transproxy rules.
 
 ## 0.9.0 - 2026-04-22
 
