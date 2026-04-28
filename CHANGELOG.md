@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2 - 2026-04-28
+
+- Add VPN subscription group refresh from the saved source URL.
+- Add whole VPN profile group deletion from the app.
+- Preserve the group while replacing profiles during subscription refresh.
+
 ## 0.9.1 - 2026-04-27
 
 - Make Russian README the default documentation entry point.
